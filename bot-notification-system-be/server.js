@@ -1,26 +1,31 @@
-require("dotenv").config();
+import 'dotenv/config';
 
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const http = require("http");
-const { Server } = require("socket.io");
-const cron = require("node-cron");
+import express from "express"
+import mongoose from "mongoose"
+import cors from "cors"
+import http from "http"
+import { Server } from "socket.io"
+import cron from "node-cron"
 
 // ===== MODELS =====
-const Announcement = require("./models/announcement_model");
-const Notification = require("./models/notification_model");
-const User = require("./models/user_model");
+import Announcement from "./models/announcement_model.js"
+import Notification from "./models/notification_model.js"
+import User from "./models/user_model.js"
+import Environment from "./models/environment_model.js"
 
 // ===== ROUTES =====
-const authRoutes = require("./routes/auth");
-const announcementRoutes = require("./routes/announcement");
-const notificationRoutes = require("./routes/notification");
-const environmentRoutes = require("./routes/environment");
-const paymentRoutes = require("./routes/payment");
+import authRoutes from "./routes/auth.js"
+import announcementRoutes from "./routes/announcement.js"
+import notificationRoutes from "./routes/notification.js"
+import environmentRoutes from "./routes/environment.js"
+import paymentRoutes from "./routes/payment.js"
+import waRoutes from "./routes/wa.js"
 
 // ===== INIT APP =====
-const app = express();
+const app = express()
+
+// WA Bot Manager
+import { initBot } from "./wa/waManager.js"
 
 // ===== MIDDLEWARE =====
 app.use(cors());
@@ -32,6 +37,7 @@ app.use("/notification", notificationRoutes);
 app.use("/announcement", announcementRoutes);
 app.use("/payment", paymentRoutes);
 app.use("/environment", environmentRoutes);
+app.use("/api/wa", waRoutes);
 
 // ===== HTTP + SOCKET SERVER =====
 const server = http.createServer(app);
@@ -91,26 +97,40 @@ cron.schedule("* * * * *", async () => {
         io.to(u._id.toString()).emit("newNotification");
       });
 
-      console.log(
-        `Scheduled announcement published: ${announcement.title}`
-      );
+      console.log(`Scheduled announcement published: ${announcement.title}`);
     }
   } catch (err) {
     console.error("Cron error:", err);
   }
 });
 
+async function autoBootBots() {
+  try {
+    const environments = await Environment.find()
+
+    console.log("Environment found:", environments.length)
+
+    for (let env of environments) {
+      console.log("ENV ID:", env._id)
+      await initBot(env._id.toString())
+    }
+
+    console.log("All bots initialized")
+  } catch (err) {
+    console.error("AUTOBOOT ERROR:", err)
+  }
+}
+
 // ===== DATABASE CONNECT =====
 mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("MongoDB connected");
-
+.connect(process.env.MONGO_URI)
+.then(() => {
+  console.log("MongoDB connected");
+  autoBootBots();
+  
     // START SERVER only after DB connected
     server.listen(process.env.PORT || 3000, () => {
-      console.log(
-        `Server running on port ${process.env.PORT || 3000}`
-      );
+      console.log(`Server running on port ${process.env.PORT || 3000}`);
     });
   })
   .catch((err) => {

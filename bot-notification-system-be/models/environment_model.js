@@ -1,24 +1,12 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose"
 
-const environmentSchema = new mongoose.Schema({
+const { Schema, model, models } = mongoose
+
+const environmentSchema = new Schema({
   name: String,
+  ownerId: { type: Schema.Types.ObjectId, ref: "User" },
+  inviteCode: { type: String, unique: true },
+  createdAt: { type: Date, default: Date.now },
+})
 
-  ownerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-  },
-
-  inviteCode: {
-    type: String,
-    unique: true,
-  },
-
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
-
-module.exports =
-  mongoose.models.Environment ||
-  mongoose.model("Environment", environmentSchema);
+export default models.Environment || model("Environment", environmentSchema)

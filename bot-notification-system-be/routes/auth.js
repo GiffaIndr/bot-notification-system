@@ -1,13 +1,13 @@
-const express = require("express");
-const router = express.Router();
+import { Router } from "express";
+import { hash, compare } from "bcryptjs";
+import jwt from "jsonwebtoken";
+const { sign, verify } = jwt;
 
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+import User from "../models/user_model.js";
+import Environment from "../models/environment_model.js";
+import auth from "../middleware/auth.js";
 
-const User = require("../models/user_model");
-const Environment = require("../models/environment_model");
-const auth = require("../middleware/auth");
-
+const router = Router();
 
 router.get("/me", auth, async (req, res) => {
   try {
@@ -26,26 +26,23 @@ router.get("/me", auth, async (req, res) => {
   }
 });
 
-
 router.post("/register-member", async (req, res) => {
   try {
     const { name, email, password, inviteCode } = req.body;
+    if (!inviteCode) return res.status(400).json({ error: "Invite code required" });
 
-    if (!inviteCode)
-      return res.status(400).json({ error: "Invite code required" });
+    // Cari environment by inviteCode
+    const environment = await Environment.findOne({ inviteCode });
+    if (!environment) return res.status(400).json({ error: "Invalid invite code" });
 
-    const environment = await Environment.findById(inviteCode);
-    if (!environment)
-      return res.status(400).json({ error: "Invalid invite code" });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hash(password, 10);
 
     await User.create({
       name,
       email,
       password: hashedPassword,
       role: "M",
-      environmentId: inviteCode,
+      environmentId: environment._id,
     });
 
     res.json({ message: "Member registered successfully" });
@@ -54,12 +51,11 @@ router.post("/register-member", async (req, res) => {
   }
 });
 
-
 router.post("/register-admin", async (req, res) => {
   try {
     const { name, email, password, envId } = req.body;
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hash(password, 10);
 
     await User.create({
       name,
@@ -75,12 +71,10 @@ router.post("/register-admin", async (req, res) => {
   }
 });
 
-
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
-
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hash(password, 10);
 
     await User.create({
       name,
@@ -94,7 +88,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-
 // =============================
 // LOGIN
 // =============================
@@ -103,29 +96,21 @@ router.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user)
-      return res.status(400).json({ error: "User not found" });
+    if (!user) return res.status(400).json({ error: "User not found" });
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ error: "Wrong password" });
+    const isMatch = await compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ error: "Wrong password" });
 
-    const token = jwt.sign(
-      {
-        id: user._id,
-        role: user.role,
-      },
+    const token = sign(
+      { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    res.json({
-      token,
-      user,
-    });
+    res.json({ token, user });
   } catch (err) {
     res.status(500).json({ error: "Login failed" });
   }
 });
 
-module.exports = router;
+export default router;

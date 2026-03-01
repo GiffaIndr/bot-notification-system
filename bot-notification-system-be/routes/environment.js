@@ -1,9 +1,10 @@
-const express = require("express");
-const router = express.Router();
-const auth = require("../middleware/auth");
-const Environment = require("../models/environment_model");
-const User = require("../models/user_model");
-const bcrypt = require("bcrypt");
+import { Router } from "express";
+import auth from "../middleware/auth.js";
+import Environment from "../models/environment_model.js";
+import User from "../models/user_model.js";
+import bcrypt from "bcrypt";
+
+const router = Router();
 
 const generateCode = () =>
   Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -115,4 +116,4 @@ router.put("/switch", auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

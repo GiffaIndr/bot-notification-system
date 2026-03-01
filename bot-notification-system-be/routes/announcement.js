@@ -1,10 +1,11 @@
-const express = require("express");
-const router = express.Router();
-const auth = require("../middleware/auth");
-const role = require("../middleware/role");
+import { Router } from "express";
+import auth from "../middleware/auth.js";
+import role from "../middleware/role.js";
 
-const Announcement = require("../models/announcement_model");
-const User = require("../models/user_model");
+import Announcement from "../models/announcement_model.js";
+import User from "../models/user_model.js";
+
+const router = Router();
 
 /* ============================
    CREATE ANNOUNCEMENT
@@ -54,12 +55,10 @@ router.delete("/:id", auth, role(["A1", "A2"]), async (req, res) => {
     if (!announcement.environmentId.equals(req.environmentId))
       return res.status(403).json({ error: "Not allowed" });
 
-    // ❌ Published tidak boleh dihapus
-    if (announcement.isPublished) {
+    if (announcement.isPublished)
       return res.status(400).json({
         error: "Cannot delete published announcement",
       });
-    }
 
     await announcement.deleteOne();
 
@@ -84,12 +83,10 @@ router.put("/:id", auth, role(["A1", "A2"]), async (req, res) => {
     if (!announcement.environmentId.equals(req.environmentId))
       return res.status(403).json({ error: "Not allowed" });
 
-    // ❌ Published tidak boleh diedit
-    if (announcement.isPublished) {
+    if (announcement.isPublished)
       return res.status(400).json({
         error: "Cannot edit published announcement",
       });
-    }
 
     announcement.title = title;
     announcement.content = content;
@@ -126,4 +123,4 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

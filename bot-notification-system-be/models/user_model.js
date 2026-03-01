@@ -1,28 +1,20 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema({
+const { Schema, model, models } = mongoose;
+
+const userSchema = new Schema({
   name: String,
   email: { type: String, unique: true },
   password: String,
-
-  role: {
-    type: String,
-    enum: ["A1", "A2", "M"],
-    default: "M",
-  },
-
+  role: { type: String, enum: ["A1", "A2", "M"], default: "M" },
   environmentId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: "Environment",
     default: null,
   },
-
-  phone: {
-    type: String,
-  },
-
+  phone: String,
   isPaid: { type: Boolean, default: false },
   semesterExpired: Date,
 });
 
-module.exports = mongoose.models.User || mongoose.model("User", userSchema);
+export default models.User || model("User", userSchema);

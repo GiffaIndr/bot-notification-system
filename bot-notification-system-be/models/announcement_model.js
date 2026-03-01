@@ -1,34 +1,19 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
-const announcementSchema = new mongoose.Schema({
+const { Schema, model, models } = mongoose;
+
+const announcementSchema = new Schema({
   environmentId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: "Environment",
     required: true,
   },
-
   title: String,
   message: String,
-  
-  scheduledAt: {
-    type: Date,
-  },
-
-  isPublished: {
-    type: Boolean,
-    default: true,
-  },
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-  },
-
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
+  scheduledAt: Date,
+  isPublished: { type: Boolean, default: true },
+  createdBy: { type: Schema.Types.ObjectId, ref: "User" },
+  createdAt: { type: Date, default: Date.now },
 });
 
-module.exports =
-  mongoose.models.Announcement ||
-  mongoose.model("Announcement", announcementSchema);
+export default models.Announcement || model("Announcement", announcementSchema);

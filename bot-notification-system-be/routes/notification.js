@@ -1,8 +1,8 @@
-const express = require("express");
-const router = express.Router();
+import { Router } from "express";
+import Notification from "../models/notification_model.js";
+import auth from "../middleware/auth.js";
 
-const Notification = require("../models/notification_model");
-const auth = require("../middleware/auth");
+const router = Router();
 
 // GET unread notification count
 router.get("/unread-count", auth, async (req, res) => {
@@ -19,6 +19,7 @@ router.get("/unread-count", auth, async (req, res) => {
   }
 });
 
+// GET all notifications
 router.get("/", auth, async (req, res) => {
   try {
     const notifications = await Notification.find({
@@ -34,14 +35,12 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
+// MARK single notification as read
 router.patch("/:id", auth, async (req, res) => {
   try {
     await Notification.updateOne(
-      {
-        _id: req.params.id,
-        userId: req.userId,
-      },
-      { $set: { isRead: true } },
+      { _id: req.params.id, userId: req.userId },
+      { $set: { isRead: true } }
     );
 
     res.json({ message: "Notification marked as read" });
@@ -55,13 +54,8 @@ router.patch("/:id", auth, async (req, res) => {
 router.patch("/mark-all-read", auth, async (req, res) => {
   try {
     await Notification.updateMany(
-      {
-        userId: req.userId,
-        isRead: false,
-      },
-      {
-        $set: { isRead: true },
-      },
+      { userId: req.userId, isRead: false },
+      { $set: { isRead: true } }
     );
 
     res.json({ message: "All notifications marked as read" });
@@ -71,4 +65,4 @@ router.patch("/mark-all-read", auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

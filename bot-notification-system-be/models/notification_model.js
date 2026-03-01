@@ -1,21 +1,13 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose"
 
-const notificationSchema = new mongoose.Schema(
-  {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    announcementId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Announcement",
-    },
-    isRead: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  { timestamps: true },
-);
+const { Schema, model, models } = mongoose
 
-module.exports = mongoose.model("Notification", notificationSchema);
+const notificationSchema = new Schema({
+  environmentId: { type: Schema.Types.ObjectId, ref: "Environment", required: true },
+  userId: { type: Schema.Types.ObjectId, ref: "User" },
+  message: String,
+  isRead: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+})
+
+export default models.Notification || model("Notification", notificationSchema)

@@ -1,10 +1,10 @@
-const mongoose = require("mongoose");
+import { Schema, model } from "mongoose";
 
-const TransactionSchema = new mongoose.Schema({
+const TransactionSchema = new Schema({
   userId: String,
   orderId: String,
   amount: Number,
   status: String,
 });
 
-module.exports = mongoose.model("Transaction", TransactionSchema);
+export default model("Transaction", TransactionSchema);
