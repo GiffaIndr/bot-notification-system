@@ -1,38 +1,108 @@
 import makeWASocket, {
   useMultiFileAuthState,
-  DisconnectReason,
   fetchLatestBaileysVersion,
+  DisconnectReason,
 } from "@whiskeysockets/baileys";
 
 import pino from "pino";
+import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import qrcode from "qrcode-terminal";
-// import commandHandler from "../commandHandler.js";
+import Environment from "../models/environment_model.js";
 
-// simpan bot per environment
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const bots = {};
 
-// Top-level await di ESM
-const { version } = await fetchLatestBaileysVersion();
+export async function initBot(environmentId, io) {
+  try {
+    console.log("INIT BOT CALLED:", environmentId);
 
-export async function initBot(environmentId) {
-  const sock = makeWASocket({
-    printQRInTerminal: true,
-  });
+    const sessionPath = path.join(
+      __dirname,
+      "sessions",
+      environmentId.toString(),
+    );
+    if (!fs.existsSync(sessionPath)) {
+      fs.mkdirSync(sessionPath, { recursive: true });
+    }
 
-  // simpan bot
-  bots[environmentId] = sock;
+    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
-  sock.ev.on("connection.update", (update) =>
-    console.log("Connection update:", update)
-  );
-  sock.ev.on("messages.upsert", (msg) => commandHandler(sock, msg));
+    const { version } = await fetchLatestBaileysVersion();
 
-  console.log("Bot WhatsApp siap!");
-  return sock;
+    const sock = makeWASocket({
+      version,
+      logger: pino({ level: "silent" }),
+      auth: state,
+      browser: ["Ubuntu", "Chrome", "20.0.04"],
+    });
+
+    sock.ev.on("creds.update", saveCreds);
+
+    sock.ev.on("connection.update", async (update) => {
+      const { connection, qr, lastDisconnect } = update;
+
+      // 🔥 CONNECTING
+      if (connection === "connecting") {
+        await Environment.findByIdAndUpdate(environmentId, {
+          status: "connecting",
+        });
+
+        console.log("Bot connecting:", environmentId);
+      }
+
+      // QR GENERATED
+      if (qr) {
+        console.log(`Scan QR untuk ENV: ${environmentId}`);
+        qrcode.generate(qr, { small: true });
+      }
+
+      // CONNECTED
+      if (connection === "open") {
+        await Environment.findByIdAndUpdate(environmentId, {
+          status: "connected",
+        });
+        io?.emit("botStatusUpdate", {
+          environmentId,
+          status: "connected",
+        });
+
+        console.log("Bot connected:", environmentId);
+      }
+
+      // DISCONNECTED
+      if (connection === "close") {
+        await Environment.findByIdAndUpdate(environmentId, {
+          status: "disconnected",
+        });
+        io?.emit("botStatusUpdate", {
+          environmentId,
+          status: "disconnected",
+        });
+
+        console.log("Bot disconnected:", environmentId);
+
+        const shouldReconnect =
+          lastDisconnect?.error?.output?.statusCode !==
+          DisconnectReason.loggedOut;
+
+        if (shouldReconnect) {
+          console.log("Reconnecting...");
+          initBot(environmentId);
+        }
+      }
+    });
+
+    bots[environmentId] = sock;
+
+    console.log("Bot initialized:", environmentId);
+  } catch (err) {
+    console.error("AUTOBOOT ERROR:", err);
+  }
 }
 
-// ===== EKSPOR getBot =====
 export function getBot(environmentId) {
   return bots[environmentId];
 }
