@@ -6,6 +6,7 @@ import CreateAnnouncement from "../components/CreateAnnoucement";
 import AnnouncementList from "../components/AnnoucementList";
 import NotificationBadge from "../components/NotificationBadge";
 import InvitePanel from "../components/InvitePanel";
+import BotPanel from "../components/BotPanel";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -32,7 +33,7 @@ export default function Dashboard() {
       if (!res.ok) {
         localStorage.removeItem("token");
         navigate("/");
-        
+
         return;
       }
 
@@ -65,6 +66,8 @@ export default function Dashboard() {
         <>
           <InvitePanel token={token} user={user} />
           <p style={{ color: "green" }}>Environment Active</p>
+
+          <BotPanel token={token} />
 
           <CreateAnnouncement token={token} user={user} />
           <AnnouncementList token={token} user={user} />
