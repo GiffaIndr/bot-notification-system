@@ -6,13 +6,21 @@ export async function sendWhatsAppMessage(
   phoneNumber,
   message
 ) {
+  const sock = getBot(environmentId);
+
+  if (!sock) {
+    await WALog.create({
+      environmentId,
+      phoneNumber,
+      message,
+      status: "failed",
+      error: "Bot not connected",
+    });
+
+    return { success: false, error: "Bot not connected" };
+  }
+
   try {
-    const sock = getBot(environmentId);
-
-    if (!sock) {
-      throw new Error("Bot not initialized for this environment");
-    }
-
     const jid = phoneNumber.includes("@s.whatsapp.net")
       ? phoneNumber
       : `${phoneNumber}@s.whatsapp.net`;
@@ -28,8 +36,6 @@ export async function sendWhatsAppMessage(
 
     return { success: true };
   } catch (err) {
-    console.error("WA SEND ERROR:", err);
-
     await WALog.create({
       environmentId,
       phoneNumber,

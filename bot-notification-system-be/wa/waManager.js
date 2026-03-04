@@ -8,35 +8,42 @@ import pino from "pino";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import qrcode from "qrcode-terminal";
 import Environment from "../models/environment_model.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const bots = {};
+
+// Production-safe bot storage
+const bots = new Map();
 
 export async function initBot(environmentId, io) {
   try {
     console.log("INIT BOT CALLED:", environmentId);
 
+    // Prevent duplicate bot instance
+    if (bots.has(environmentId)) {
+      console.log("Bot already initialized:", environmentId);
+      return;
+    }
+
     const sessionPath = path.join(
       __dirname,
       "sessions",
-      environmentId.toString(),
+      environmentId.toString()
     );
+
     if (!fs.existsSync(sessionPath)) {
       fs.mkdirSync(sessionPath, { recursive: true });
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
       version,
       logger: pino({ level: "silent" }),
       auth: state,
-      browser: ["Ubuntu", "Chrome", "20.0.04"],
+      browser: ["Bot Notification", "Chrome", "1.0.0"],
     });
 
     sock.ev.on("creds.update", saveCreds);
@@ -44,19 +51,28 @@ export async function initBot(environmentId, io) {
     sock.ev.on("connection.update", async (update) => {
       const { connection, qr, lastDisconnect } = update;
 
-      // 🔥 CONNECTING
+      // CONNECTING
       if (connection === "connecting") {
         await Environment.findByIdAndUpdate(environmentId, {
+          status: "connecting",
+        });
+
+        io?.emit("botStatusUpdate", {
+          environmentId,
           status: "connecting",
         });
 
         console.log("Bot connecting:", environmentId);
       }
 
-      // QR GENERATED
+      // 📷 QR GENERATED → SEND TO DASHBOARD
       if (qr) {
-        console.log(`Scan QR untuk ENV: ${environmentId}`);
-        qrcode.generate(qr, { small: true });
+        console.log("QR generated for:", environmentId);
+
+        io?.emit("qrUpdate", {
+          environmentId,
+          qr,
+        });
       }
 
       // CONNECTED
@@ -64,6 +80,7 @@ export async function initBot(environmentId, io) {
         await Environment.findByIdAndUpdate(environmentId, {
           status: "connected",
         });
+
         io?.emit("botStatusUpdate", {
           environmentId,
           status: "connected",
@@ -77,6 +94,7 @@ export async function initBot(environmentId, io) {
         await Environment.findByIdAndUpdate(environmentId, {
           status: "disconnected",
         });
+
         io?.emit("botStatusUpdate", {
           environmentId,
           status: "disconnected",
@@ -84,25 +102,34 @@ export async function initBot(environmentId, io) {
 
         console.log("Bot disconnected:", environmentId);
 
+        bots.delete(environmentId);
+
         const shouldReconnect =
           lastDisconnect?.error?.output?.statusCode !==
           DisconnectReason.loggedOut;
 
         if (shouldReconnect) {
-          console.log("Reconnecting...");
-          initBot(environmentId);
+          console.log("Reconnecting bot:", environmentId);
+          setTimeout(() => {
+            initBot(environmentId, io);
+          }, 3000);
         }
       }
     });
 
-    bots[environmentId] = sock;
+    // 🔥 Save bot instance
+    bots.set(environmentId, sock);
 
     console.log("Bot initialized:", environmentId);
   } catch (err) {
-    console.error("AUTOBOOT ERROR:", err);
+    console.error("BOT INIT ERROR:", err);
   }
 }
 
 export function getBot(environmentId) {
-  return bots[environmentId];
+  return bots.get(environmentId);
+}
+
+export function removeBot(environmentId) {
+  bots.delete(environmentId);
 }

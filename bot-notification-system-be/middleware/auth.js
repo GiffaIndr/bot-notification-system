@@ -5,6 +5,7 @@ import User from "../models/user_model.js"
 
 export default async function authMiddleware(req, res, next) {
   try {
+    console.log("AUTH HEADER:", req.headers.authorization);
     const authHeader = req.headers.authorization
     if (!authHeader) return res.status(401).json({ error: "No token" })
 

@@ -9,12 +9,39 @@ const router = Router();
 const generateCode = () =>
   Math.random().toString(36).substring(2, 8).toUpperCase();
 
+router.get("/me", auth, async (req, res) => {
+  try {
+    const environment = await Environment.findOne({
+      ownerId: req.userId,  
+    });
+
+    if (!environment) {
+      return res.status(404).json({ message: "Environment not found" });
+    }
+
+    res.json(environment);
+  } catch (err) {
+    console.error("ENV ME ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.post("/create", auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId);
 
-    if (!user.isPaid)
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (!user.isPaid) {
       return res.status(403).json({ error: "Must subscribe first" });
+    }
+
+    // 🔥 FIX PENTING
+    if (!user.environments) {
+      user.environments = [];
+    }
 
     const inviteCode = generateCode();
 
@@ -24,20 +51,19 @@ router.post("/create", auth, async (req, res) => {
       inviteCode,
     });
 
-    // Tambahkan ke environments array
     user.environments.push({
       environmentId: env._id,
       role: "A1",
     });
 
-    user.activeEnvironment = env._id;
+    user.environmentId = env._id;
 
     await user.save();
 
     res.json(env);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
+    console.error("CREATE ENV ERROR:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 

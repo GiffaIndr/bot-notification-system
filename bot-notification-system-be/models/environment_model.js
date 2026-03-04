@@ -11,6 +11,16 @@ const environmentSchema = new Schema({
     enum: ["connected", "disconnected", "connecting"],
     default: "disconnected",
   },
+  featureFlags: {
+    autoReply: { type: Boolean, default: false },
+    autoWelcome: { type: Boolean, default: false },
+    broadcastEnabled: { type: Boolean, default: true },
+  },
+
+  delayMs: {
+    type: Number,
+    default: 2000,
+  },
   createdAt: { type: Date, default: Date.now },
 });
 
